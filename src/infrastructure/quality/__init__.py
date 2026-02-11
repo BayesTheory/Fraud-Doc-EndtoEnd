@@ -1,0 +1,1 @@
+# Quality Gate — OpenCV implementation
