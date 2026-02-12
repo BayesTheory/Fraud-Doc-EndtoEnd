@@ -1,0 +1,31 @@
+# ── Fraud-Doc Pipeline — Requirements ──
+# Core
+fastapi==0.128.7
+uvicorn==0.40.0
+pydantic==2.12.5
+pydantic-settings==2.12.0
+python-multipart>=0.0.5
+
+# Database
+SQLAlchemy==2.0.46
+asyncpg==0.31.0
+psycopg2-binary==2.9.11
+pgvector==0.4.2
+
+# OCR
+paddleocr==3.4.0
+paddlepaddle==3.0.0
+paddlex==3.4.1
+easyocr==1.7.2
+
+# Computer Vision
+opencv-python-headless==4.11.0.86
+Pillow==12.1.1
+numpy==2.4.2
+
+# LLM + Embeddings
+google-genai==1.63.0
+
+# ML (CPU — for Cloud Run)
+torch==2.10.0
+torchvision==0.25.0
