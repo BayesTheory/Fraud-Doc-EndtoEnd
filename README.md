@@ -28,7 +28,7 @@ Each document flows through 4 stages:
 | Stage | Component | Description |
 |-------|-----------|-------------|
 | **1. Quality Gate** | `OpenCVQualityGate` | Blur, brightness, resolution, framing checks (~5ms) |
-| **2. OCR** | `PaddleOCREngine` / `PassportOCREngine` | Field extraction — bbox-guided for annotated data |
+| **2. OCR** | `EasyOCR` + `PaddleOCR v5` | Dual-engine: EasyOCR primary (~1s/field), Paddle fallback (~3s/field) |
 | **3. Rules Engine** | `PassportRulesEngine` / `BrazilianDocRulesEngine` | Deterministic validation with severity scoring |
 | **4. Decision** | `AnalyzeDocumentUseCase` | Multi-signal aggregation → APPROVED / REVIEW / SUSPICIOUS / REJECTED |
 
@@ -62,6 +62,17 @@ Using [MIDV-2020](https://arxiv.org/abs/2107.00396) passport subset in COCO form
 
 **34 annotated field categories** including MRZ lines, dates, document numbers, face, signature.
 
+## 🔬 OCR Test Results
+
+Tested on MIDV-2020 passports (4 countries):
+
+| Engine | MRZ Checksum Accuracy | Avg Confidence | Speed/field |
+|--------|----------------------|----------------|-------------|
+| **EasyOCR** (raw + allowlist) | 9/10 (90%) | 0.50-1.00 | ~1.5s |
+| **PaddleOCR v5** (enable_mkldnn=False) | TBD (higher conf) | 0.94-1.00 | ~3-10s |
+
+**Strategy**: EasyOCR primary (fast) → PaddleOCR fallback (accurate) → Manual review if both fail.
+
 ## ⚡ Quick Start
 
 ```bash
@@ -69,12 +80,19 @@ Using [MIDV-2020](https://arxiv.org/abs/2107.00396) passport subset in COCO form
 python -m venv .venv
 .venv\Scripts\activate       # Windows
 pip install -e .
+pip install easyocr           # Primary OCR engine
+
+# Run OCR test on single passport
+python scripts/test_ocr_single.py
+
+# Run dual-engine comparison
+python scripts/test_dual_ocr.py
+
+# Run accuracy analysis (MRZ checksum validation)
+python scripts/analyze_ocr_accuracy.py
 
 # Run batch pipeline (no OCR, fast)
 python scripts/process_dataset.py --split train --no-ocr
-
-# Run batch pipeline (with OCR)
-python scripts/process_dataset.py --split train --limit 10
 
 # Start API
 uvicorn src.api.main:app --reload
@@ -90,7 +108,7 @@ src/
 │   └── use_cases/           # AnalyzeDocumentUseCase
 ├── infrastructure/          # Adapters
 │   ├── quality/             # OpenCV quality gate
-│   ├── ocr/                 # PaddleOCR + Passport OCR engines
+│   ├── ocr/                 # EasyOCR (primary) + PaddleOCR v5 (fallback)
 │   ├── rules/               # Brazilian doc rules + Passport ICAO rules
 │   ├── data/                # COCO dataset loader (MIDV-2020)
 │   ├── db/                  # SQLAlchemy + pgvector
@@ -102,7 +120,10 @@ src/
 └── config/                  # Settings (pydantic-settings)
 
 scripts/
-└── process_dataset.py       # Batch pipeline processor
+├── process_dataset.py       # Batch pipeline processor
+├── test_ocr_single.py       # EasyOCR single passport test
+├── test_dual_ocr.py         # PaddleOCR vs EasyOCR comparison
+└── analyze_ocr_accuracy.py  # MRZ checksum accuracy analysis
 
 data/
 ├── raw/                     # MIDV-2020 dataset (train/valid/test)
@@ -114,13 +135,14 @@ static/
 
 ## 🔬 Current Status
 
-| Component | Code | Tested | Production-Ready |
-|-----------|------|--------|-------------------|
-| COCO DataLoader | ✅ | ✅ | ✅ |
-| Quality Gate | ✅ | ✅ | ✅ |
-| Passport Rules | ✅ | ⚠️ partial | ❌ needs OCR data |
-| Passport OCR | ✅ | ❌ | ❌ not yet tested |
-| Batch Processor | ✅ | ✅ | ⚠️ without OCR |
+| Component | Code | Tested | Status |
+|-----------|------|--------|--------|
+| COCO DataLoader | ✅ | ✅ | ✅ Production-ready |
+| Quality Gate | ✅ | ✅ | ✅ Production-ready |
+| Passport Rules | ✅ | ⚠️ | ⚠️ Checksums validated via OCR |
+| EasyOCR Engine | ✅ | ✅ | ✅ 90% MRZ accuracy |
+| PaddleOCR v5 Fallback | ✅ | ✅ | ✅ Higher confidence, slower |
+| Batch Processor | ✅ | ✅ | ⚠️ Without OCR integration |
 | API + Web UI | ✅ | ✅ | ⚠️ BR docs only |
 
 ## 📍 Roadmap
@@ -130,9 +152,13 @@ static/
 - [x] COCO DataLoader (MIDV-2020)
 - [x] Passport Rules Engine (ICAO 9303)
 - [x] Batch Pipeline (no OCR)
-- [ ] **OCR Integration** — PaddleOCR on passport fields
+- [x] EasyOCR integration + MRZ validation (9/10 checksums OK)
+- [x] PaddleOCR v5 dual-engine comparison
+- [ ] **Integrate dual-OCR into PassportOCREngine**
+- [ ] **Run batch pipeline WITH OCR**
+- [ ] **Validate rules engine with real OCR output**
 - [ ] Fraud Simulation — synthetic tampering on MIDV-2020
-- [ ] Fraud Classifier — EfficientNet-B0 binary model
+- [ ] Fraud Classifier — binary model
 - [ ] LLM Integration — semantic anomaly analysis
 - [ ] Docker Compose deployment
 
