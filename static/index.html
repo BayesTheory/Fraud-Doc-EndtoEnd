@@ -79,9 +79,14 @@
                     <button id="btn-analyze" class="btn-primary btn-full" disabled>
                         <span class="btn-icon-left">🔬</span> Analyze Document
                     </button>
-                    <button id="btn-demo" class="btn-ghost btn-full">
-                        <span class="btn-icon-left">⚡</span> Run Demo
-                    </button>
+                    <div class="demo-buttons">
+                        <span class="demo-label">⚡ Live Demo:</span>
+                        <div class="demo-actions">
+                            <button class="btn-ghost btn-sm demo-btn" onclick="runDemo('approved')">✅ Valid</button>
+                            <button class="btn-ghost btn-sm demo-btn" onclick="runDemo('rejected')">❌ Fraud</button>
+                            <button class="btn-ghost btn-sm demo-btn" onclick="runDemo('review')">⚠️ Review</button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Results Panel -->
@@ -319,7 +324,8 @@
                         <div class="step-icon">📝</div>
                         <h3>Hybrid OCR</h3>
                         <p><strong>PaddleOCR v5</strong> reads the MRZ zone (monospace OCR-B font, 99%+ accuracy).
-                            <strong>EasyOCR</strong> extracts VIZ text (names, dates, nationality).</p>
+                            <strong>EasyOCR</strong> extracts VIZ text (names, dates, nationality).
+                        </p>
                         <div class="step-tech">PaddleOCR v5 · EasyOCR · ICAO 9303</div>
                         <div class="step-metrics">
                             <span>~2-5s</span>
@@ -369,28 +375,18 @@
                     <div class="step-card final-step">
                         <div class="step-icon">🛡️</div>
                         <h3>Decision & Storage</h3>
-                        <p>Final decision (APPROVED/REJECTED/REVIEW) is computed. Results stored with unique case ID for
-                            dashboard, analytics, and RAG vector database.</p>
-                        <div class="step-tech">Case Store · RAG · Dashboard</div>
+                        <p>Total decision computed:<br>
+                            <strong>APPROVED</strong><br>
+                            <strong>REJECTED</strong><br>
+                            <strong>REVIEW</strong><br>
+                            Results stored for Dashboard & RAG.
+                        </p>
+                        <div class="step-tech">PostgreSQL · pgvector · RAG</div>
                         <div class="step-metrics">
                             <span>Total ~3-8s</span>
                             <span>Full JSON</span>
                         </div>
                     </div>
-                </div>
-            </div>
-
-            <!-- Future Architecture -->
-            <div class="future-section">
-                <h2>🔮 Future: RAG Architecture</h2>
-                <div class="future-card">
-                    <p>Each analysis result becomes a vector in the database. When a new document arrives, the system
-                        searches for similar past cases to provide context-aware decisions.</p>
-                    <pre class="code-block">New Document → OCR → Rules → RAG Search (find similar cases)
-                                    ↓
-                              LLM + Context from past cases
-                                    ↓
-                            More accurate fraud detection</pre>
                 </div>
             </div>
         </section>

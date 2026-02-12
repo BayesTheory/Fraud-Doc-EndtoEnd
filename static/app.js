@@ -37,7 +37,6 @@ function initUpload() {
     const dropZone = document.getElementById('drop-zone');
     const fileInput = document.getElementById('file-input');
     const btnAnalyze = document.getElementById('btn-analyze');
-    const btnDemo = document.getElementById('btn-demo');
     const previewClear = document.getElementById('preview-clear');
 
     dropZone.addEventListener('click', () => fileInput.click());
@@ -50,7 +49,7 @@ function initUpload() {
     });
     fileInput.addEventListener('change', () => { if (fileInput.files[0]) setFile(fileInput.files[0]); });
     btnAnalyze.addEventListener('click', analyzeDocument);
-    btnDemo.addEventListener('click', runDemo);
+    // runDemo is called via onclick
     previewClear.addEventListener('click', clearFile);
 }
 
@@ -204,10 +203,98 @@ function showResults(data) {
 }
 
 // ─── Demo ───
-async function runDemo() {
+// ─── Demo Data ───
+const DEMO_CASES = {
+    approved: {
+        case_id: "demo-approved-001",
+        final_decision: "APPROVED",
+        final_score: 0.98,
+        total_latency_ms: 3240,
+        quality: { quality_score: 0.96, recommendation: "ACCEPT" },
+        ocr: {
+            avg_confidence: 0.99,
+            ocr_engine: "Hybrid (PaddleOCR v5 + EasyOCR)",
+            doc_type_detected: "PASSPORT",
+            fields: [
+                { name: "primary_identifier", value: "SILVA", confidence: 0.99 },
+                { name: "secondary_identifier", value: "MARIA", confidence: 0.99 },
+                { name: "document_number", value: "BR1234567", confidence: 0.99 },
+                { name: "nationality", value: "BRA", confidence: 0.99 },
+                { name: "date_of_birth", value: "10.05.1988", confidence: 0.99 }
+            ]
+        },
+        rules: { rules_passed: 10, rules_total: 10, risk_level: "LOW", violations: [] },
+        llm: {
+            fraud_probability: 0.02,
+            assessment: "Perfect document. All checksums pass, data is consistent, and no anomalies detected.",
+            recommendation: "APPROVE",
+            anomalies: []
+        }
+    },
+    rejected: {
+        case_id: "demo-fraud-002",
+        final_decision: "REJECTED",
+        final_score: 0.12,
+        total_latency_ms: 4100,
+        quality: { quality_score: 0.88, recommendation: "ACCEPT" },
+        ocr: {
+            avg_confidence: 0.92,
+            ocr_engine: "Hybrid (PaddleOCR v5 + EasyOCR)",
+            doc_type_detected: "PASSPORT",
+            fields: [
+                { name: "primary_identifier", value: "SMITH", confidence: 0.95 },
+                { name: "document_number", value: "X12345678", confidence: 0.90 }
+            ]
+        },
+        rules: {
+            rules_passed: 7, rules_total: 10, risk_level: "CRITICAL",
+            violations: [
+                { severity: "CRITICAL", rule_name: "Document Number Checksum", detail: "Checksum mismatch (expected 8, got 5)" },
+                { severity: "HIGH", rule_name: "Cross-Check", detail: "Surname mismatch VIZ vs MRZ" }
+            ]
+        },
+        llm: {
+            fraud_probability: 0.95,
+            assessment: "Strong evidence of tampering. Checksum failure and name mismatch are critical red flags.",
+            recommendation: "REJECT",
+            anomalies: ["Checksum failure", "Name mismatch"]
+        }
+    },
+    review: {
+        case_id: "demo-review-003",
+        final_decision: "REVIEW",
+        final_score: 0.55,
+        total_latency_ms: 3800,
+        quality: { quality_score: 0.45, recommendation: "REVIEW" },
+        ocr: {
+            avg_confidence: 0.72,
+            ocr_engine: "Hybrid (PaddleOCR v5 + EasyOCR)",
+            doc_type_detected: "PASSPORT",
+            fields: [
+                { name: "primary_identifier", value: "TANAKA", confidence: 0.72 },
+                { name: "document_number", value: "TK9988776", confidence: 0.68 }
+            ]
+        },
+        rules: { rules_passed: 10, rules_total: 10, risk_level: "LOW", violations: [] },
+        llm: {
+            fraud_probability: 0.20,
+            assessment: "Document rules pass, but image quality is very low (blur). Cannot reliably authenticate security features.",
+            recommendation: "REVIEW",
+            anomalies: ["High Blur Detected", "Low OCR Confidence"]
+        }
+    }
+};
+
+async function runDemo(type) {
+    if (!type || !DEMO_CASES[type]) type = 'approved';
+
     showLoading();
+
+    // Simulate pipeline steps visual
     const steps = ['quality', 'ocr', 'rules', 'llm'];
     let stepIdx = 0;
+
+    // Faster for demo
     const stepTimer = setInterval(() => {
         if (stepIdx < steps.length) {
             document.querySelectorAll('.load-step').forEach((s, i) => {
@@ -216,23 +303,13 @@ async function runDemo() {
             });
             stepIdx++;
         }
-    }, 300);
+    }, 400);
 
-    try {
-        const res = await fetch(`${API}/api/v1/cases`);
-        const data = await res.json();
+    // Simulate network delay
+    setTimeout(() => {
         clearInterval(stepTimer);
-        if (data.cases?.length) {
-            // Show the first demo case
-            const demo = data.cases[data.cases.length - 1];
-            showResults(demo);
-        } else {
-            showError('No demo cases available');
-        }
-    } catch (err) {
-        clearInterval(stepTimer);
-        showError(err.message);
-    }
+        showResults(DEMO_CASES[type]);
+    }, 2000);
 }
 
 // ─── Dashboard ───

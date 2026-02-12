@@ -286,6 +286,36 @@ body {
     margin-right: 6px;
 }
 
+/* ═══ DEMO BUTTONS ═══ */
+.demo-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.demo-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.demo-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.demo-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 12px;
+}
+
 /* ═══ INPUTS ═══ */
 .input-field {
     width: 100%;
