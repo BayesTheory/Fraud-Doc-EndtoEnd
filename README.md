@@ -154,12 +154,12 @@ static/
 - [x] Batch Pipeline (no OCR)
 - [x] EasyOCR integration + MRZ validation (9/10 checksums OK)
 - [x] PaddleOCR v5 dual-engine comparison
-- [ ] **Integrate dual-OCR into PassportOCREngine**
-- [ ] **Run batch pipeline WITH OCR**
-- [ ] **Validate rules engine with real OCR output**
-- [ ] Fraud Simulation — synthetic tampering on MIDV-2020
-- [ ] Fraud Classifier — binary model
-- [ ] LLM Integration — semantic anomaly analysis
+- [x] Integrate dual-OCR into PassportOCREngine
+- [x] Run batch pipeline WITH OCR
+- [x] Validate rules engine with real OCR output
+- [x] Fraud Simulation — synthetic tampering on MIDV-2020
+- [x] Fraud Classifier — binary model
+- [x] LLM Integration — semantic anomaly analysis
 - [ ] Docker Compose deployment
 
 ## 📄 License
