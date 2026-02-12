@@ -139,11 +139,11 @@ static/
 |-----------|------|--------|--------|
 | COCO DataLoader | ✅ | ✅ | ✅ Production-ready |
 | Quality Gate | ✅ | ✅ | ✅ Production-ready |
-| Passport Rules | ✅ | ⚠️ | ⚠️ Checksums validated via OCR |
+| Passport Rules | ✅ | ✅ | ✅ Checksums validated via OCR |
 | EasyOCR Engine | ✅ | ✅ | ✅ 90% MRZ accuracy |
 | PaddleOCR v5 Fallback | ✅ | ✅ | ✅ Higher confidence, slower |
-| Batch Processor | ✅ | ✅ | ⚠️ Without OCR integration |
-| API + Web UI | ✅ | ✅ | ⚠️ BR docs only |
+| Batch Processor | ✅ | ✅ | ✅ With OCR integration |
+| API + Web UI | ✅ | ✅ | ✅ BR docs only |
 
 ## 📍 Roadmap
 
@@ -161,7 +161,4 @@ static/
 - [x] Fraud Classifier — binary model
 - [x] LLM Integration — semantic anomaly analysis
 - [ ] Docker Compose deployment
-
-## 📄 License
-
-MIT
+=
