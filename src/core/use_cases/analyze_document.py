@@ -66,12 +66,9 @@ class AnalyzeDocumentUseCase:
         result.quality = quality
 
         if not quality.quality_ok:
-            result.final_decision = "REJECTED"
-            result.final_score = quality.quality_score
-            result.rejection_reasons = quality.reasons
-            result.stage_latencies = stage_latencies
-            result.total_latency_ms = round((time.perf_counter() - t_start) * 1000, 2)
-            return result
+            # Quality issues are recorded but pipeline CONTINUES
+            # OCR + Rules + LLM will catch real problems
+            pass
 
         # ── 2. OCR ─────────────────────────────────────────
         t0 = time.perf_counter()

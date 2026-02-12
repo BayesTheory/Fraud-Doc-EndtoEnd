@@ -165,8 +165,15 @@ class PassportRulesEngine(IRulesEngine):
 
     def apply(self, ocr_result: OCRResult, doc_type: str | None = None) -> RulesResult:
         """Apply all passport rules to OCR result."""
-        # Accept either OCRResult or a dict-like object
-        if hasattr(ocr_result, 'extracted_fields'):
+        # Convert OCRResult fields to dict
+        if hasattr(ocr_result, 'fields') and isinstance(ocr_result.fields, list):
+            # OCRResult.fields is a list of OCRField objects
+            fields = {}
+            for f in ocr_result.fields:
+                name = f.name if hasattr(f, 'name') else str(f.get('name', ''))
+                value = f.value if hasattr(f, 'value') else str(f.get('value', ''))
+                fields[name] = value
+        elif hasattr(ocr_result, 'extracted_fields'):
             fields = ocr_result.extracted_fields
         elif isinstance(ocr_result, dict):
             fields = ocr_result
@@ -335,6 +342,8 @@ class PassportRulesEngine(IRulesEngine):
 
         doe = parse_mrz_date(mrz.date_of_expiry)
         if doe:
+            if doe < today:
+                v.append(("CRITICAL", f"Document expired: {doe}"))
             years = (doe - today).days / 365.25
             if years > 15:
                 v.append(("HIGH", f"Expiry too far: {doe} ({years:.0f}y)"))
@@ -371,4 +380,23 @@ class PassportRulesEngine(IRulesEngine):
         if viz_sex and viz_sex not in ("[BBOX_PRESENT]", "") and mrz.sex:
             if viz_sex[0] != mrz.sex[0]:
                 v.append(("HIGH", f"Sex mismatch: VIZ='{viz_sex}' vs MRZ='{mrz.sex}'"))
+
+        # DOB cross-check: VIZ date vs MRZ date
+        viz_dob = fields.get("date_of_birth", "").strip()
+        if viz_dob and viz_dob not in ("[BBOX_PRESENT]", "") and mrz.date_of_birth:
+            mrz_dob = parse_mrz_date(mrz.date_of_birth)
+            if mrz_dob:
+                # Extract day/month/year from VIZ (various formats)
+                dob_nums = re.findall(r'\d+', viz_dob)
+                if len(dob_nums) >= 3:
+                    try:
+                        # Try DD.MM.YYYY or DD MM YYYY
+                        d, m, y = int(dob_nums[0]), int(dob_nums[1]), int(dob_nums[2])
+                        if y < 100:
+                            y = 2000 + y if y < 30 else 1900 + y
+                        viz_date = date(y, m, d)
+                        if viz_date != mrz_dob:
+                            v.append(("CRITICAL", f"DOB mismatch: VIZ='{viz_dob}' vs MRZ={mrz_dob}"))
+                    except (ValueError, TypeError):
+                        pass  # Can't parse VIZ date, skip
         return v

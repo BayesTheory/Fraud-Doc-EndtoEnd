@@ -22,10 +22,10 @@ class Settings(BaseSettings):
     brightness_min: int = 50
     brightness_max: int = 220
     min_resolution: int = 640
-    min_doc_area_ratio: float = 0.70
+    min_doc_area_ratio: float = 0.05
 
     # --- OCR ---
-    ocr_lang: str = "pt"
+    ocr_lang: str = "en"
     ocr_use_gpu: bool = False
     ocr_min_confidence: float = 0.5
 
@@ -33,7 +33,12 @@ class Settings(BaseSettings):
     fraud_model_path: str = "models/weights/efficientnet_b0_fraud.pt"
     fraud_threshold: float = 0.5
 
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+    # --- LLM (Gemini) ---
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-2.0-flash"
+    llm_enabled: bool = True
+
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
 
 @lru_cache

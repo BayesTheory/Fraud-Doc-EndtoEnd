@@ -62,6 +62,7 @@ class AnalysisResponse(BaseModel):
     ocr: OCRResponse | None = None
     rules: RulesResponse | None = None
     fraud: FraudResponse | None = None
+    llm: dict | None = None
     pipeline_version: str = ""
     total_latency_ms: float = 0.0
     stage_latencies: dict = {}

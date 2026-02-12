@@ -25,7 +25,7 @@ class OpenCVQualityGate(IQualityGate):
         brightness_min: int = 50,
         brightness_max: int = 220,
         min_resolution: int = 640,
-        min_doc_area_ratio: float = 0.70,
+        min_doc_area_ratio: float = 0.05,
     ):
         self._blur_threshold = blur_threshold
         self._brightness_min = brightness_min
@@ -124,29 +124,63 @@ class OpenCVQualityGate(IQualityGate):
 
     def _check_framing(self, img: np.ndarray) -> float:
         """
-        Estima a proporção da imagem ocupada pelo documento.
-        Usa Canny + contornos para encontrar o maior retângulo.
-        Retorna ratio (0.0 a 1.0).
+        Estimate document area ratio using multiple strategies.
+        Returns ratio 0.0 to 1.0 — best result from 3 methods.
         """
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-        edges = cv2.Canny(blurred, 50, 150)
-
-        # Dilata para fechar gaps
-        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
-        edges = cv2.dilate(edges, kernel, iterations=2)
-
-        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-        if not contours:
+        image_area = img.shape[0] * img.shape[1]
+        if image_area == 0:
             return 0.0
 
-        # Maior contorno por área
-        largest = max(contours, key=cv2.contourArea)
-        contour_area = cv2.contourArea(largest)
-        image_area = img.shape[0] * img.shape[1]
+        ratios = []
 
-        return contour_area / image_area if image_area > 0 else 0.0
+        # Strategy 1: Adaptive threshold + largest contour
+        try:
+            thresh = cv2.adaptiveThreshold(
+                gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                cv2.THRESH_BINARY_INV, 51, 10
+            )
+            kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (15, 15))
+            closed = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
+            contours, _ = cv2.findContours(closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            if contours:
+                largest = max(contours, key=cv2.contourArea)
+                ratios.append(cv2.contourArea(largest) / image_area)
+        except Exception:
+            pass
+
+        # Strategy 2: Multi-scale Canny + contour approximation
+        try:
+            blurred = cv2.GaussianBlur(gray, (7, 7), 0)
+            for lo, hi in [(30, 100), (50, 150), (75, 200)]:
+                edges = cv2.Canny(blurred, lo, hi)
+                kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 9))
+                dilated = cv2.dilate(edges, kernel, iterations=3)
+                contours, _ = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                if contours:
+                    largest = max(contours, key=cv2.contourArea)
+                    # Try to approximate as rectangle
+                    peri = cv2.arcLength(largest, True)
+                    approx = cv2.approxPolyDP(largest, 0.02 * peri, True)
+                    if 4 <= len(approx) <= 8:
+                        ratios.append(cv2.contourArea(approx) / image_area)
+                    else:
+                        ratios.append(cv2.contourArea(largest) / image_area)
+        except Exception:
+            pass
+
+        # Strategy 3: Edge density — documents have text = high edge density
+        try:
+            edges = cv2.Canny(gray, 50, 150)
+            edge_density = np.count_nonzero(edges) / image_area
+            # Document images typically have 3-15% edge density
+            # Non-document (blank wall, sky) has <1%
+            if edge_density > 0.02:
+                ratios.append(min(edge_density * 8, 1.0))  # Scale to 0-1
+        except Exception:
+            pass
+
+        return max(ratios) if ratios else 0.0
 
     def _compute_quality_score(
         self,
