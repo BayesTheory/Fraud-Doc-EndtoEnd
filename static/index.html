@@ -1,496 +1,403 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fraud-Doc Pipeline — Análise de Documentos</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        :root {
-            --bg: #0a0e1a;
-            --surface: #111827;
-            --surface-2: #1a2236;
-            --border: #1e293b;
-            --text: #e2e8f0;
-            --text-muted: #94a3b8;
-            --accent: #6366f1;
-            --accent-glow: rgba(99, 102, 241, 0.3);
-            --green: #10b981;
-            --green-bg: rgba(16, 185, 129, 0.1);
-            --red: #ef4444;
-            --red-bg: rgba(239, 68, 68, 0.1);
-            --yellow: #f59e0b;
-            --yellow-bg: rgba(245, 158, 11, 0.1);
-            --blue: #3b82f6;
-            --blue-bg: rgba(59, 130, 246, 0.1);
-        }
-
-        body {
-            font-family: 'Inter', -apple-system, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            min-height: 100vh;
-        }
-
-        /* ── Header ─────────────────── */
-        .header {
-            background: linear-gradient(135deg, var(--surface) 0%, var(--surface-2) 100%);
-            border-bottom: 1px solid var(--border);
-            padding: 1.25rem 2rem;
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-        .header .logo {
-            width: 36px; height: 36px;
-            background: linear-gradient(135deg, var(--accent), #8b5cf6);
-            border-radius: 10px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 18px; font-weight: 700; color: white;
-        }
-        .header h1 {
-            font-size: 1.15rem; font-weight: 600;
-        }
-        .header .badge {
-            font-size: 0.7rem; background: var(--accent-glow); color: var(--accent);
-            padding: 0.2rem 0.6rem; border-radius: 20px; font-weight: 500;
-        }
-
-        /* ── Layout ─────────────────── */
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 2rem;
-            display: grid;
-            grid-template-columns: 380px 1fr;
-            gap: 2rem;
-        }
-
-        /* ── Upload Area ────────────── */
-        .upload-panel {
-            position: sticky; top: 2rem;
-            align-self: start;
-        }
-        .drop-zone {
-            border: 2px dashed var(--border);
-            border-radius: 16px;
-            padding: 2.5rem 1.5rem;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            background: var(--surface);
-        }
-        .drop-zone:hover, .drop-zone.dragover {
-            border-color: var(--accent);
-            background: rgba(99, 102, 241, 0.05);
-            box-shadow: 0 0 30px var(--accent-glow);
-        }
-        .drop-zone .icon { font-size: 3rem; margin-bottom: 0.75rem; }
-        .drop-zone h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.3rem; }
-        .drop-zone p { font-size: 0.8rem; color: var(--text-muted); }
-
-        .preview-container {
-            margin-top: 1rem;
-            border-radius: 12px;
-            overflow: hidden;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            display: none;
-        }
-        .preview-container img {
-            width: 100%; max-height: 280px;
-            object-fit: contain; background: #000;
-        }
-        .preview-info {
-            padding: 0.75rem 1rem;
-            font-size: 0.78rem;
-            color: var(--text-muted);
-            display: flex; justify-content: space-between;
-        }
-
-        .btn-analyze {
-            width: 100%;
-            margin-top: 1rem;
-            padding: 0.85rem;
-            background: linear-gradient(135deg, var(--accent), #8b5cf6);
-            color: white;
-            border: none;
-            border-radius: 12px;
-            font-size: 0.9rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: none;
-        }
-        .btn-analyze:hover { transform: translateY(-1px); box-shadow: 0 8px 25px var(--accent-glow); }
-        .btn-analyze:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-        .btn-analyze.loading { pointer-events: none; }
-
-        /* ── Results Panel ──────────── */
-        .results-panel { min-height: 400px; }
-
-        .empty-state {
-            display: flex; flex-direction: column;
-            align-items: center; justify-content: center;
-            height: 400px; text-align: center;
-            color: var(--text-muted);
-        }
-        .empty-state .icon { font-size: 4rem; margin-bottom: 1rem; opacity: 0.3; }
-        .empty-state h3 { font-size: 1rem; margin-bottom: 0.3rem; color: var(--text); }
-
-        /* ── Decision Banner ────────── */
-        .decision-banner {
-            padding: 1.25rem 1.5rem;
-            border-radius: 16px;
-            margin-bottom: 1.5rem;
-            display: flex; align-items: center; gap: 1rem;
-            animation: slideIn 0.4s ease;
-        }
-        .decision-banner.APPROVED { background: var(--green-bg); border: 1px solid rgba(16,185,129,0.3); }
-        .decision-banner.REJECTED { background: var(--red-bg); border: 1px solid rgba(239,68,68,0.3); }
-        .decision-banner.REVIEW { background: var(--yellow-bg); border: 1px solid rgba(245,158,11,0.3); }
-
-        .decision-banner .dec-icon { font-size: 2rem; }
-        .decision-banner .dec-label { font-size: 1.1rem; font-weight: 700; }
-        .decision-banner .dec-sub { font-size: 0.8rem; color: var(--text-muted); }
-        .decision-banner .dec-score {
-            margin-left: auto; font-size: 1.8rem;
-            font-weight: 700; font-variant-numeric: tabular-nums;
-        }
-        .decision-banner.APPROVED .dec-label, .decision-banner.APPROVED .dec-score { color: var(--green); }
-        .decision-banner.REJECTED .dec-label, .decision-banner.REJECTED .dec-score { color: var(--red); }
-        .decision-banner.REVIEW .dec-label, .decision-banner.REVIEW .dec-score { color: var(--yellow); }
-
-        /* ── Cards ──────────────────── */
-        .card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            margin-bottom: 1rem;
-            overflow: hidden;
-            animation: slideIn 0.4s ease;
-        }
-        .card-header {
-            padding: 1rem 1.25rem;
-            display: flex; align-items: center; gap: 0.75rem;
-            border-bottom: 1px solid var(--border);
-            cursor: pointer;
-        }
-        .card-header .card-icon { font-size: 1.2rem; }
-        .card-header h3 { font-size: 0.85rem; font-weight: 600; flex: 1; }
-        .card-header .card-badge {
-            font-size: 0.7rem; padding: 0.15rem 0.5rem;
-            border-radius: 8px; font-weight: 600;
-        }
-        .card-badge.ok { background: var(--green-bg); color: var(--green); }
-        .card-badge.fail { background: var(--red-bg); color: var(--red); }
-        .card-badge.warn { background: var(--yellow-bg); color: var(--yellow); }
-        .card-badge.info { background: var(--blue-bg); color: var(--blue); }
-
-        .card-body { padding: 1rem 1.25rem; }
-
-        /* ── Metric rows ────────────── */
-        .metric-row {
-            display: flex; justify-content: space-between;
-            align-items: center; padding: 0.5rem 0;
-            border-bottom: 1px solid rgba(255,255,255,0.04);
-        }
-        .metric-row:last-child { border-bottom: none; }
-        .metric-label { font-size: 0.8rem; color: var(--text-muted); }
-        .metric-value { font-size: 0.85rem; font-weight: 600; font-variant-numeric: tabular-nums; }
-
-        /* ── Tags ───────────────────── */
-        .tag {
-            display: inline-block; font-size: 0.7rem;
-            padding: 0.2rem 0.5rem; border-radius: 6px;
-            margin: 0.15rem; font-weight: 500;
-        }
-        .tag.red { background: var(--red-bg); color: var(--red); }
-        .tag.yellow { background: var(--yellow-bg); color: var(--yellow); }
-        .tag.green { background: var(--green-bg); color: var(--green); }
-        .tag.blue { background: var(--blue-bg); color: var(--blue); }
-
-        /* ── Violation rows ─────────── */
-        .violation {
-            padding: 0.6rem 0.75rem; margin: 0.4rem 0;
-            border-radius: 8px; font-size: 0.78rem;
-            background: rgba(255,255,255,0.02);
-            border-left: 3px solid;
-        }
-        .violation.CRITICAL { border-color: var(--red); }
-        .violation.HIGH { border-color: #f97316; }
-        .violation.MEDIUM { border-color: var(--yellow); }
-        .violation.LOW { border-color: var(--blue); }
-        .violation .v-header { font-weight: 600; margin-bottom: 0.2rem; }
-        .violation .v-detail { color: var(--text-muted); }
-
-        /* ── Latency bar ────────────── */
-        .latency-bar {
-            display: flex; gap: 0.5rem; align-items: center;
-            padding: 0.75rem 1.25rem;
-            background: rgba(255,255,255,0.02);
-            font-size: 0.75rem; color: var(--text-muted);
-        }
-        .latency-bar span { font-weight: 600; color: var(--text); }
-
-        /* ── Spinner ────────────────── */
-        .spinner {
-            display: none;
-            text-align: center;
-            padding: 4rem;
-        }
-        .spinner.active { display: block; }
-        .spinner .dot {
-            width: 10px; height: 10px;
-            background: var(--accent);
-            border-radius: 50%;
-            display: inline-block;
-            margin: 0 4px;
-            animation: bounce 1.4s infinite ease-in-out both;
-        }
-        .spinner .dot:nth-child(1) { animation-delay: -0.32s; }
-        .spinner .dot:nth-child(2) { animation-delay: -0.16s; }
-
-        @keyframes bounce {
-            0%, 80%, 100% { transform: scale(0); }
-            40% { transform: scale(1); }
-        }
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateY(12px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* ── Responsive ─────────────── */
-        @media (max-width: 800px) {
-            .container { grid-template-columns: 1fr; }
-            .upload-panel { position: static; }
-        }
-    </style>
+    <title>Bayes — Fraud-Doc Pipeline</title>
+    <meta name="description" content="AI-powered document fraud detection with OCR, rules engine, and LLM analysis">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
-
-<div class="header">
-    <div class="logo">F</div>
-    <h1>Fraud-Doc Pipeline</h1>
-    <div class="badge">v0.1.0</div>
-</div>
-
-<div class="container">
-    <!-- Upload Panel -->
-    <div class="upload-panel">
-        <div class="drop-zone" id="dropZone">
-            <div class="icon">📄</div>
-            <h3>Arraste o documento aqui</h3>
-            <p>ou clique para selecionar (JPEG, PNG)</p>
-            <input type="file" id="fileInput" accept="image/*" hidden>
+    <!-- ─── SIDEBAR NAV ─── -->
+    <nav id="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-icon">B</div>
+            <span class="brand-text">Bayes</span>
         </div>
-
-        <div class="preview-container" id="previewContainer">
-            <img id="previewImg" alt="Preview">
-            <div class="preview-info">
-                <span id="fileName">—</span>
-                <span id="fileSize">—</span>
+        <div class="sidebar-nav">
+            <a href="#/analyze" class="nav-item active" data-page="analyze">
+                <span class="nav-icon">🔍</span>
+                <span class="nav-label">Analyze</span>
+            </a>
+            <a href="#/dashboard" class="nav-item" data-page="dashboard">
+                <span class="nav-icon">📊</span>
+                <span class="nav-label">Dashboard</span>
+            </a>
+            <a href="#/api" class="nav-item" data-page="api">
+                <span class="nav-icon">📡</span>
+                <span class="nav-label">API</span>
+            </a>
+            <a href="#/pipeline" class="nav-item" data-page="pipeline">
+                <span class="nav-icon">📐</span>
+                <span class="nav-label">Pipeline</span>
+            </a>
+        </div>
+        <div class="sidebar-footer">
+            <div class="sidebar-status">
+                <span class="status-dot online"></span>
+                <span>v1.0.0</span>
             </div>
         </div>
+    </nav>
 
-        <button class="btn-analyze" id="btnAnalyze" onclick="analyze()">
-            🔍 Analisar Documento
-        </button>
-    </div>
+    <!-- ─── MAIN CONTENT ─── -->
+    <main id="main-content">
 
-    <!-- Results Panel -->
-    <div class="results-panel" id="resultsPanel">
-        <div class="empty-state" id="emptyState">
-            <div class="icon">🔎</div>
-            <h3>Nenhuma análise realizada</h3>
-            <p>Faça upload de um documento para começar</p>
-        </div>
-
-        <div class="spinner" id="spinner">
-            <div class="dot"></div>
-            <div class="dot"></div>
-            <div class="dot"></div>
-            <p style="margin-top:1rem; color: var(--text-muted); font-size:0.85rem;">Analisando documento...</p>
-        </div>
-
-        <div id="resultsContent"></div>
-    </div>
-</div>
-
-<script>
-const dropZone = document.getElementById('dropZone');
-const fileInput = document.getElementById('fileInput');
-const previewContainer = document.getElementById('previewContainer');
-const previewImg = document.getElementById('previewImg');
-const btnAnalyze = document.getElementById('btnAnalyze');
-
-let selectedFile = null;
-
-// ── Drag & Drop ──────────────────────
-dropZone.addEventListener('click', () => fileInput.click());
-dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
-dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-dropZone.addEventListener('drop', e => {
-    e.preventDefault();
-    dropZone.classList.remove('dragover');
-    if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
-});
-fileInput.addEventListener('change', e => { if (e.target.files.length) handleFile(e.target.files[0]); });
-
-function handleFile(file) {
-    if (!file.type.startsWith('image/')) { alert('Selecione uma imagem'); return; }
-    selectedFile = file;
-    const reader = new FileReader();
-    reader.onload = e => {
-        previewImg.src = e.target.result;
-        previewContainer.style.display = 'block';
-        btnAnalyze.style.display = 'block';
-        document.getElementById('fileName').textContent = file.name;
-        document.getElementById('fileSize').textContent = (file.size / 1024).toFixed(1) + ' KB';
-    };
-    reader.readAsDataURL(file);
-}
-
-// ── Analyze ──────────────────────────
-async function analyze() {
-    if (!selectedFile) return;
-
-    btnAnalyze.disabled = true;
-    btnAnalyze.textContent = '⏳ Processando...';
-    document.getElementById('emptyState').style.display = 'none';
-    document.getElementById('spinner').classList.add('active');
-    document.getElementById('resultsContent').innerHTML = '';
-
-    const formData = new FormData();
-    formData.append('file', selectedFile);
-
-    try {
-        const res = await fetch('/api/v1/analyze', { method: 'POST', body: formData });
-        const data = await res.json();
-        renderResults(data);
-    } catch (err) {
-        document.getElementById('resultsContent').innerHTML =
-            `<div class="card"><div class="card-body"><p style="color:var(--red)">Erro: ${err.message}</p></div></div>`;
-    } finally {
-        document.getElementById('spinner').classList.remove('active');
-        btnAnalyze.disabled = false;
-        btnAnalyze.textContent = '🔍 Analisar Documento';
-    }
-}
-
-// ── Render ───────────────────────────
-function renderResults(data) {
-    const c = document.getElementById('resultsContent');
-    let html = '';
-
-    // Decision Banner
-    const icons = { APPROVED: '✅', REJECTED: '🚫', REVIEW: '⚠️' };
-    const labels = { APPROVED: 'Aprovado', REJECTED: 'Rejeitado', REVIEW: 'Revisão Manual' };
-    html += `
-        <div class="decision-banner ${data.final_decision}">
-            <div class="dec-icon">${icons[data.final_decision] || '❓'}</div>
-            <div>
-                <div class="dec-label">${labels[data.final_decision] || data.final_decision}</div>
-                <div class="dec-sub">Case: ${data.case_id.slice(0,8)}... · ${data.total_latency_ms.toFixed(0)}ms</div>
+        <!-- ═══ PAGE: ANALYZE ═══ -->
+        <section id="page-analyze" class="page active">
+            <div class="page-header">
+                <h1>Document Analysis</h1>
+                <p class="page-subtitle">Upload a passport image for AI-powered fraud detection</p>
             </div>
-            <div class="dec-score">${(data.final_score * 100).toFixed(0)}%</div>
-        </div>`;
 
-    // Rejection reasons
-    if (data.rejection_reasons && data.rejection_reasons.length > 0) {
-        html += '<div style="margin-bottom:1rem;">';
-        data.rejection_reasons.forEach(r => { html += `<span class="tag red">${r}</span>`; });
-        html += '</div>';
-    }
-
-    // Quality Card
-    if (data.quality) {
-        const q = data.quality;
-        const badge = q.quality_ok ? '<span class="card-badge ok">OK</span>' : '<span class="card-badge fail">FALHOU</span>';
-        html += `
-            <div class="card">
-                <div class="card-header">
-                    <span class="card-icon">🔍</span>
-                    <h3>Quality Gate</h3>
-                    ${badge}
-                </div>
-                <div class="card-body">
-                    <div class="metric-row"><span class="metric-label">Score</span><span class="metric-value">${(q.quality_score * 100).toFixed(1)}%</span></div>
-                    <div class="metric-row"><span class="metric-label">Recomendação</span><span class="metric-value">${q.recommendation}</span></div>
-                    ${q.details ? Object.entries(q.details).map(([k,v]) =>
-                        `<div class="metric-row"><span class="metric-label">${k}</span><span class="metric-value">${typeof v === 'number' ? v.toFixed(2) : v}</span></div>`
-                    ).join('') : ''}
-                </div>
-                ${q.reasons.length ? '<div style="padding:0.5rem 1.25rem 1rem">' + q.reasons.map(r => `<span class="tag red">${r}</span>`).join('') + '</div>' : ''}
-            </div>`;
-    }
-
-    // OCR Card
-    if (data.ocr) {
-        const o = data.ocr;
-        const docBadge = o.doc_type_detected !== 'UNKNOWN'
-            ? `<span class="card-badge info">${o.doc_type_detected}</span>` : '';
-        html += `
-            <div class="card">
-                <div class="card-header">
-                    <span class="card-icon">📝</span>
-                    <h3>OCR — Campos Extraídos</h3>
-                    ${docBadge}
-                </div>
-                <div class="card-body">
-                    <div class="metric-row"><span class="metric-label">Engine</span><span class="metric-value">${o.ocr_engine}</span></div>
-                    <div class="metric-row"><span class="metric-label">Confiança Média</span><span class="metric-value">${(o.avg_confidence * 100).toFixed(1)}%</span></div>
-                    ${o.fields.map(f => `
-                        <div class="metric-row">
-                            <span class="metric-label">${f.name}</span>
-                            <span class="metric-value">${f.value} <span class="tag ${f.confidence > 0.8 ? 'green' : f.confidence > 0.5 ? 'yellow' : 'red'}">${(f.confidence * 100).toFixed(0)}%</span></span>
+            <div class="analyze-layout">
+                <!-- Upload Panel -->
+                <div class="upload-panel">
+                    <div id="drop-zone" class="drop-zone">
+                        <div class="drop-zone-content">
+                            <div class="drop-icon">📄</div>
+                            <p class="drop-title">Drop image here</p>
+                            <p class="drop-subtitle">or click to select · JPEG, PNG</p>
                         </div>
-                    `).join('')}
-                </div>
-                ${o.raw_text ? `<div style="padding:0.5rem 1.25rem 1rem"><details><summary style="cursor:pointer;font-size:0.78rem;color:var(--text-muted)">Texto bruto</summary><p style="font-size:0.75rem;margin-top:0.5rem;color:var(--text-muted);word-break:break-all">${o.raw_text}</p></details></div>` : ''}
-            </div>`;
-    }
+                        <input type="file" id="file-input" accept="image/*" hidden>
+                    </div>
 
-    // Rules Card
-    if (data.rules) {
-        const r = data.rules;
-        const rBadge = r.rules_failed === 0
-            ? '<span class="card-badge ok">PASS</span>'
-            : `<span class="card-badge fail">${r.rules_failed} falha(s)</span>`;
-        html += `
-            <div class="card">
-                <div class="card-header">
-                    <span class="card-icon">⚖️</span>
-                    <h3>Regras de Negócio</h3>
-                    ${rBadge}
-                </div>
-                <div class="card-body">
-                    <div class="metric-row"><span class="metric-label">Aprovadas</span><span class="metric-value" style="color:var(--green)">${r.rules_passed}/${r.rules_total}</span></div>
-                    <div class="metric-row"><span class="metric-label">Nível de Risco</span><span class="metric-value">${r.risk_level} (${(r.risk_score * 100).toFixed(0)}%)</span></div>
-                    <div class="metric-row"><span class="metric-label">Versão Regras</span><span class="metric-value">${r.rules_version}</span></div>
-                    ${r.violations.map(v => `
-                        <div class="violation ${v.severity}">
-                            <div class="v-header"><span class="tag ${v.severity === 'CRITICAL' ? 'red' : v.severity === 'HIGH' ? 'red' : 'yellow'}">${v.severity}</span> ${v.rule_name}</div>
-                            <div class="v-detail">${v.detail}</div>
+                    <div id="preview-box" class="preview-box hidden">
+                        <img id="preview-img" src="" alt="Preview">
+                        <div class="preview-info">
+                            <span id="preview-name"></span>
+                            <button id="preview-clear" class="btn-icon" title="Remove">✕</button>
                         </div>
-                    `).join('')}
+                    </div>
+
+                    <button id="btn-analyze" class="btn-primary btn-full" disabled>
+                        <span class="btn-icon-left">🔬</span> Analyze Document
+                    </button>
+                    <button id="btn-demo" class="btn-ghost btn-full">
+                        <span class="btn-icon-left">⚡</span> Run Demo
+                    </button>
                 </div>
-            </div>`;
-    }
 
-    // Latency
-    if (data.stage_latencies) {
-        html += `<div class="latency-bar">⏱️ Latências:
-            ${Object.entries(data.stage_latencies).map(([k,v]) => `${k}: <span>${v.toFixed(0)}ms</span>`).join(' · ')}
-            · total: <span>${data.total_latency_ms.toFixed(0)}ms</span>
-        </div>`;
-    }
+                <!-- Results Panel -->
+                <div class="results-panel">
+                    <div id="results-placeholder" class="results-placeholder">
+                        <div class="placeholder-icon">🛡️</div>
+                        <p>Upload a document to begin analysis</p>
+                        <p class="placeholder-sub">Pipeline: Quality → OCR → Rules → LLM</p>
+                    </div>
 
-    c.innerHTML = html;
-}
-</script>
+                    <div id="loading-state" class="loading-state hidden">
+                        <div class="loading-spinner"></div>
+                        <p id="loading-text">Analyzing document...</p>
+                        <div class="loading-steps">
+                            <div class="load-step" data-step="quality"><span class="step-dot"></span> Quality Gate</div>
+                            <div class="load-step" data-step="ocr"><span class="step-dot"></span> OCR Extraction</div>
+                            <div class="load-step" data-step="rules"><span class="step-dot"></span> Rules Engine</div>
+                            <div class="load-step" data-step="llm"><span class="step-dot"></span> LLM Analysis</div>
+                        </div>
+                    </div>
+
+                    <div id="results-content" class="results-content hidden"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══ PAGE: DASHBOARD ═══ -->
+        <section id="page-dashboard" class="page">
+            <!-- Login Gate -->
+            <div id="dash-login" class="dash-login">
+                <div class="login-card">
+                    <div class="login-icon">🔒</div>
+                    <h2>Dashboard Access</h2>
+                    <p>Enter password to access the dashboard</p>
+                    <div class="login-hint">💡 Password: <code>admin</code></div>
+                    <div class="input-group">
+                        <input type="password" id="dash-password" placeholder="Password" class="input-field">
+                        <button id="btn-login" class="btn-primary">Enter</button>
+                    </div>
+                    <p id="login-error" class="login-error hidden">Invalid password</p>
+                </div>
+            </div>
+
+            <!-- Dashboard Content -->
+            <div id="dash-content" class="hidden">
+                <div class="page-header">
+                    <h1>Dashboard</h1>
+                    <p class="page-subtitle">Analysis history & AI assistant</p>
+                </div>
+
+                <!-- Stats Row -->
+                <div class="stats-row" id="stats-row">
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-total">0</div>
+                        <div class="stat-label">Total Cases</div>
+                    </div>
+                    <div class="stat-card stat-approved">
+                        <div class="stat-value" id="stat-approved">0</div>
+                        <div class="stat-label">Approved</div>
+                    </div>
+                    <div class="stat-card stat-rejected">
+                        <div class="stat-value" id="stat-rejected">0</div>
+                        <div class="stat-label">Rejected</div>
+                    </div>
+                    <div class="stat-card stat-review">
+                        <div class="stat-value" id="stat-review">0</div>
+                        <div class="stat-label">Review</div>
+                    </div>
+                </div>
+
+                <div class="dash-layout">
+                    <!-- Cases Table -->
+                    <div class="cases-panel">
+                        <div class="panel-header">
+                            <h3>📋 Analysis History</h3>
+                            <button id="btn-refresh" class="btn-ghost btn-sm">↻ Refresh</button>
+                        </div>
+                        <div id="cases-table" class="cases-table">
+                            <p class="muted">Loading cases...</p>
+                        </div>
+                    </div>
+
+                    <!-- AI Chat -->
+                    <div class="chat-panel">
+                        <div class="panel-header">
+                            <h3>🤖 AI Assistant</h3>
+                            <span class="badge badge-ai">Gemini</span>
+                        </div>
+                        <div id="chat-messages" class="chat-messages">
+                            <div class="chat-msg bot">
+                                <div class="msg-avatar">🤖</div>
+                                <div class="msg-bubble">Hello! I'm your fraud analysis AI assistant. I have access to
+                                    all analysis results. Ask me anything about the cases, patterns, or fraud detection.
+                                </div>
+                            </div>
+                        </div>
+                        <div class="chat-input-row">
+                            <input type="text" id="chat-input" placeholder="Ask about fraud patterns..."
+                                class="input-field">
+                            <button id="btn-send" class="btn-primary">Send</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══ PAGE: API ═══ -->
+        <section id="page-api" class="page">
+            <div class="page-header">
+                <h1>API Documentation</h1>
+                <p class="page-subtitle">Integrate fraud detection into your system</p>
+            </div>
+
+            <div class="api-layout">
+                <!-- Health Status -->
+                <div class="api-card">
+                    <div class="api-card-header">
+                        <span class="api-method get">GET</span>
+                        <code>/health</code>
+                        <button class="btn-ghost btn-sm" onclick="testHealth()">▶ Test</button>
+                    </div>
+                    <p>Check API health and status</p>
+                    <pre id="health-response" class="code-block">Click "Test" to check health</pre>
+                </div>
+
+                <!-- Analyze endpoint -->
+                <div class="api-card">
+                    <div class="api-card-header">
+                        <span class="api-method post">POST</span>
+                        <code>/api/v1/analyze</code>
+                    </div>
+                    <p>Analyze a passport document for fraud. Upload as multipart form data.</p>
+                    <h4>Request</h4>
+                    <pre class="code-block">curl -X POST http://localhost:8000/api/v1/analyze \
+  -F "file=@passport.jpg"</pre>
+                    <h4>Response</h4>
+                    <pre class="code-block">{
+  "case_id": "uuid",
+  "final_decision": "APPROVED | REJECTED | REVIEW",
+  "final_score": 0.95,
+  "quality": { "quality_ok": true, "quality_score": 0.92 },
+  "ocr": { "fields": [...], "avg_confidence": 0.98 },
+  "rules": { "rules_passed": 10, "violations": [] },
+  "llm": { "fraud_probability": 0.05, "recommendation": "APPROVE" }
+}</pre>
+                </div>
+
+                <!-- Auth endpoint -->
+                <div class="api-card">
+                    <div class="api-card-header">
+                        <span class="api-method post">POST</span>
+                        <code>/api/v1/auth</code>
+                    </div>
+                    <p>Authenticate to access dashboard features.</p>
+                    <pre class="code-block">curl -X POST http://localhost:8000/api/v1/auth \
+  -H "Content-Type: application/json" \
+  -d '{"password": "admin"}'</pre>
+                </div>
+
+                <!-- Cases endpoint -->
+                <div class="api-card">
+                    <div class="api-card-header">
+                        <span class="api-method get">GET</span>
+                        <code>/api/v1/cases</code>
+                    </div>
+                    <p>List all analysis runs. Returns case history for dashboard and RAG.</p>
+                    <pre class="code-block">curl http://localhost:8000/api/v1/cases?limit=50&offset=0</pre>
+                </div>
+
+                <!-- Chat endpoint -->
+                <div class="api-card">
+                    <div class="api-card-header">
+                        <span class="api-method post">POST</span>
+                        <code>/api/v1/chat</code>
+                    </div>
+                    <p>Chat with the AI assistant about fraud analysis data.</p>
+                    <pre class="code-block">curl -X POST http://localhost:8000/api/v1/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "What patterns do you see in recent cases?"}'</pre>
+                </div>
+
+                <!-- Swagger -->
+                <div class="api-card">
+                    <div class="api-card-header">
+                        <span class="api-method get">GET</span>
+                        <code>/docs</code>
+                    </div>
+                    <p>Interactive Swagger UI documentation. <a href="/docs" target="_blank" class="link">Open Swagger
+                            UI →</a></p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══ PAGE: PIPELINE ═══ -->
+        <section id="page-pipeline" class="page">
+            <div class="page-header">
+                <h1>Pipeline Architecture</h1>
+                <p class="page-subtitle">What happens when an image enters the system</p>
+            </div>
+
+            <div class="pipeline-flow">
+                <!-- Step 1 -->
+                <div class="pipeline-step">
+                    <div class="step-number">1</div>
+                    <div class="step-card">
+                        <div class="step-icon">📸</div>
+                        <h3>Image Upload</h3>
+                        <p>Document image (JPEG/PNG) enters the pipeline via API or web interface.</p>
+                        <div class="step-tech">FastAPI · Multipart Upload</div>
+                    </div>
+                </div>
+                <div class="pipeline-arrow">→</div>
+
+                <!-- Step 2 -->
+                <div class="pipeline-step">
+                    <div class="step-number">2</div>
+                    <div class="step-card">
+                        <div class="step-icon">🔍</div>
+                        <h3>Quality Gate</h3>
+                        <p>OpenCV checks blur (Laplacian variance), brightness (HSV), resolution, and document framing
+                            (multi-strategy contour detection).</p>
+                        <div class="step-tech">OpenCV · Canny · Adaptive Threshold</div>
+                        <div class="step-metrics">
+                            <span>~50ms</span>
+                            <span>4 checks</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="pipeline-arrow">→</div>
+
+                <!-- Step 3 -->
+                <div class="pipeline-step">
+                    <div class="step-number">3</div>
+                    <div class="step-card">
+                        <div class="step-icon">📝</div>
+                        <h3>Hybrid OCR</h3>
+                        <p><strong>PaddleOCR v5</strong> reads the MRZ zone (monospace OCR-B font, 99%+ accuracy).
+                            <strong>EasyOCR</strong> extracts VIZ text (names, dates, nationality).</p>
+                        <div class="step-tech">PaddleOCR v5 · EasyOCR · ICAO 9303</div>
+                        <div class="step-metrics">
+                            <span>~2-5s</span>
+                            <span>10+ fields</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="pipeline-arrow">→</div>
+
+                <!-- Step 4 -->
+                <div class="pipeline-step">
+                    <div class="step-number">4</div>
+                    <div class="step-card">
+                        <div class="step-icon">⚖️</div>
+                        <h3>Rules Engine</h3>
+                        <p>10 ICAO 9303 rules: MRZ format, 5 checksums (doc number, DOB, DOE, personal, composite),
+                            country code, date plausibility, required fields, VIZ↔MRZ cross-check.</p>
+                        <div class="step-tech">ICAO 9303 · ISO 3166 · Check Digits</div>
+                        <div class="step-metrics">
+                            <span>~2ms</span>
+                            <span>10 rules</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="pipeline-arrow">→</div>
+
+                <!-- Step 5 -->
+                <div class="pipeline-step">
+                    <div class="step-number">5</div>
+                    <div class="step-card">
+                        <div class="step-icon">🧠</div>
+                        <h3>LLM Analysis</h3>
+                        <p>Gemini 2.0 Flash receives OCR fields + rules violations and provides semantic fraud
+                            assessment, anomaly detection, and recommendation.</p>
+                        <div class="step-tech">Gemini 2.0 Flash · Structured JSON</div>
+                        <div class="step-metrics">
+                            <span>~1-3s</span>
+                            <span>AI verdict</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="pipeline-arrow">→</div>
+
+                <!-- Step 6 -->
+                <div class="pipeline-step">
+                    <div class="step-number">6</div>
+                    <div class="step-card final-step">
+                        <div class="step-icon">🛡️</div>
+                        <h3>Decision & Storage</h3>
+                        <p>Final decision (APPROVED/REJECTED/REVIEW) is computed. Results stored with unique case ID for
+                            dashboard, analytics, and RAG vector database.</p>
+                        <div class="step-tech">Case Store · RAG · Dashboard</div>
+                        <div class="step-metrics">
+                            <span>Total ~3-8s</span>
+                            <span>Full JSON</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Future Architecture -->
+            <div class="future-section">
+                <h2>🔮 Future: RAG Architecture</h2>
+                <div class="future-card">
+                    <p>Each analysis result becomes a vector in the database. When a new document arrives, the system
+                        searches for similar past cases to provide context-aware decisions.</p>
+                    <pre class="code-block">New Document → OCR → Rules → RAG Search (find similar cases)
+                                    ↓
+                              LLM + Context from past cases
+                                    ↓
+                            More accurate fraud detection</pre>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script src="app.js"></script>
 </body>
+
 </html>
