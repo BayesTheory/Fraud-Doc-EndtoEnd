@@ -44,15 +44,46 @@ class HybridOCREngine(IOCREngine):
     def _get_paddle(self):
         if self._paddle is None:
             from paddleocr import PaddleOCR
-            self._paddle = PaddleOCR(lang="en")
+            
+            # Check for local models
+            # Path: src/infrastructure/ocr/models/paddle
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            model_dir = os.path.join(base_dir, "models", "paddle")
+            
+            kwargs = {"lang": "en", "use_angle_cls": True, "show_log": False}
+            
+            # Verify if specific model folders exist
+            det_dir = os.path.join(model_dir, "en_PP-OCRv3_det_infer")
+            rec_dir = os.path.join(model_dir, "en_PP-OCRv3_rec_infer")
+            
+            if os.path.exists(model_dir) and os.path.exists(det_dir) and os.path.exists(rec_dir):
+                logger.info(f"Using local PaddleOCR models from {model_dir}")
+                kwargs["det_model_dir"] = det_dir
+                kwargs["rec_model_dir"] = rec_dir
+                kwargs["cls_model_dir"] = os.path.join(model_dir, "ch_ppocr_mobile_v2.0_cls_infer")
+            
+            self._paddle = PaddleOCR(**kwargs)
         return self._paddle
 
     def _get_easyocr(self):
         if self._easyocr is None:
             import easyocr
-            self._easyocr = easyocr.Reader(
-                [self.lang], gpu=self.use_gpu, verbose=False
-            )
+            
+            # Check for local models
+            # Path: src/infrastructure/ocr/models/easyocr
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            model_dir = os.path.join(base_dir, "models", "easyocr")
+            
+            kwargs = {"gpu": self.use_gpu, "verbose": False}
+            
+            if os.path.exists(model_dir) and os.listdir(model_dir):
+                logger.info(f"Using local EasyOCR models from {model_dir}")
+                kwargs["model_storage_directory"] = model_dir
+                kwargs["download_enabled"] = False
+            else:
+                kwargs["download_enabled"] = True
+            
+            self._easyocr = easyocr.Reader([self.lang], **kwargs)
         return self._easyocr
 
     def extract(self, image_bytes: bytes, doc_type_hint: str | None = None) -> OCRResult:

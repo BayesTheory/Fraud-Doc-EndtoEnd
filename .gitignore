@@ -12,6 +12,9 @@ fraud_doc.db
 pgdata/
 models/
 
+# Models (local download)
+src/infrastructure/ocr/models/
+
 # Logs
 *.log
 
