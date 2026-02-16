@@ -1,7 +1,7 @@
 # 🔍 Fraud-Doc EndtoEnd
 
-End-to-end document fraud detection pipeline built with **Clean Architecture (Ports & Adapters)**.  
-Validates identity documents (passports, Brazilian IDs) using computer vision, OCR, and deterministic rule engines.
+End-to-end document fraud detection pipeline.  
+Validates identity documents (passports) using computer vision, OCR, and deterministic rule engines.
 
 ---
 
